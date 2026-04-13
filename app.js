@@ -1,22 +1,25 @@
-let equipo = "";
-let curso = "";
+
 let nombre = "";
 let apellido = "";
+let equipo = "";
+let curso = "";
+let paso = "equipo"; // 🔥 control de flujo
 
 const beep = new Audio("https://www.soundjay.com/buttons/beep-07.wav");
 
-// Service Worker
+// SW
 if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("service-worker.js");
 }
 
-// Guardar usuario
+/* ---------------- LOGIN ---------------- */
+
 function guardarUsuario() {
     nombre = document.getElementById("nombre").value.trim();
     apellido = document.getElementById("apellido").value.trim();
 
     if (!nombre || !apellido) {
-        alert("Completa nombre y apellido");
+        alert("Completa datos");
         return;
     }
 
@@ -24,19 +27,19 @@ function guardarUsuario() {
     iniciarApp();
 }
 
-// Cambiar usuario
 function cambiarUsuario() {
     localStorage.removeItem("usuario");
     location.reload();
 }
 
-// Iniciar app
-function iniciarApp() {
-    let usuario = JSON.parse(localStorage.getItem("usuario"));
-    if (!usuario) return;
+/* ---------------- APP ---------------- */
 
-    nombre = usuario.nombre;
-    apellido = usuario.apellido;
+function iniciarApp() {
+    const user = JSON.parse(localStorage.getItem("usuario"));
+    if (!user) return;
+
+    nombre = user.nombre;
+    apellido = user.apellido;
 
     document.getElementById("login").style.display = "none";
     document.getElementById("app").style.display = "block";
@@ -45,60 +48,80 @@ function iniciarApp() {
         `👤 ${nombre} ${apellido}`;
 
     cargarHistorial();
-
-    iniciarQR("reader-equipo", "equipo");
-    iniciarQR("reader-curso", "curso");
+    iniciarEscaneo();
 }
 
-// Validación básica QR
-function validarQR(texto) {
-    return texto.length > 2;
-}
+/* ---------------- ESCANEO ---------------- */
 
-// Iniciar QR
-async function iniciarQR(id, tipo) {
-    const qr = new Html5Qrcode(id);
+async function iniciarEscaneo() {
+    const qr = new Html5Qrcode("reader");
 
     const devices = await Html5Qrcode.getCameras();
 
-    if (devices && devices.length) {
-        const camaraTrasera = devices.find(d =>
-            d.label.toLowerCase().includes("back") ||
-            d.label.toLowerCase().includes("rear")
-        );
+    if (!devices.length) {
+        alert("No hay cámara disponible");
+        return;
+    }
 
-        const cameraId = camaraTrasera ? camaraTrasera.id : devices[0].id;
+    // 🔥 FORZAR CÁMARA TRASERA REAL
+    let cameraId = devices[0].id;
 
-        qr.start(
-            cameraId,
-            { fps: 10 },
-            (decodedText) => {
+    for (let d of devices) {
+        const label = d.label.toLowerCase();
+        if (
+            label.includes("back") ||
+            label.includes("rear") ||
+            label.includes("environment") ||
+            label.includes("trasera") ||
+            label.includes("posterior")
+        ) {
+            cameraId = d.id;
+            break;
+        }
+    }
 
-                if (!validarQR(decodedText)) return;
+    qr.start(
+        cameraId,
+        { fps: 10, aspectRatio: 1.777 },
+        async (text) => {
 
-                beep.play();
+            if (text.length < 2) return;
 
-                if (tipo === "equipo") {
-                    equipo = decodedText;
-                    document.getElementById("equipo").innerText = decodedText;
-                } else {
-                    curso = decodedText;
-                    document.getElementById("curso").innerText = decodedText;
-                }
+            beep.play();
+
+            // 🔥 FLUJO SECUENCIAL
+            if (paso === "equipo") {
+
+                equipo = text;
+                document.getElementById("resultado").innerText =
+                    "Equipo: " + text;
+
+                paso = "curso";
 
                 qr.stop();
-
-                if (equipo && curso) {
-                    guardar();
-                    reiniciarEscaneo();
-                }
+                setTimeout(() => iniciarEscaneo(), 500);
             }
-        );
-    }
+
+            else if (paso === "curso") {
+
+                curso = text;
+                document.getElementById("resultado").innerText =
+                    `Equipo: ${equipo} | Curso: ${curso}`;
+
+                guardarRegistro();
+
+                paso = "equipo";
+
+                qr.stop();
+                setTimeout(() => iniciarEscaneo(), 500);
+            }
+        }
+    );
 }
 
-// Guardar registro
-function guardar() {
+/* ---------------- GUARDAR ---------------- */
+
+function guardarRegistro() {
     let registros = JSON.parse(localStorage.getItem("registros")) || [];
 
     registros.push({
@@ -117,7 +140,8 @@ function guardar() {
     cargarHistorial();
 }
 
-// Historial
+/* ---------------- HISTORIAL ---------------- */
+
 function cargarHistorial() {
     let registros = JSON.parse(localStorage.getItem("registros")) || [];
 
@@ -130,16 +154,8 @@ function cargarHistorial() {
     document.getElementById("historial").innerHTML = html;
 }
 
-// Reiniciar escaneo
-function reiniciarEscaneo() {
-    document.getElementById("equipo").innerText = "";
-    document.getElementById("curso").innerText = "";
+/* ---------------- EXPORT EXCEL ---------------- */
 
-    iniciarQR("reader-equipo", "equipo");
-    iniciarQR("reader-curso", "curso");
-}
-
-// Exportar CSV
 function exportarCSV() {
     let registros = JSON.parse(localStorage.getItem("registros")) || [];
 
@@ -150,7 +166,9 @@ function exportarCSV() {
         csv += `${r.nombre};${r.apellido};${r.equipo};${r.curso};${fecha}\n`;
     });
 
-    let blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    let blob = new Blob(["\uFEFF" + csv], {
+        type: "text/csv;charset=utf-8;"
+    });
 
     let url = URL.createObjectURL(blob);
 
@@ -160,14 +178,14 @@ function exportarCSV() {
     a.click();
 }
 
-// Finalizar registro
 function finalizarRegistro() {
-    if (confirm("¿Finalizar y exportar Excel?")) {
+    if (confirm("Exportar Excel?")) {
         exportarCSV();
     }
 }
 
-// Auto inicio
+/* ---------------- AUTO LOGIN ---------------- */
+
 window.onload = () => {
     if (localStorage.getItem("usuario")) {
         iniciarApp();
