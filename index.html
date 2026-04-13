@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Registro QR</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    body { font-family: Arial; text-align: center; margin: 10px; }
+    input { padding: 10px; margin: 5px; width: 80%; }
+    button { margin: 8px; padding: 10px 15px; font-size: 14px; }
+    #app { display: none; }
+    #historial {
+      max-height: 150px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      margin-top: 10px;
+      padding: 5px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <h2>👤 Datos del estudiante</h2>
+  <input type="text" id="nombre" placeholder="Nombre"><br>
+  <input type="text" id="apellido" placeholder="Apellido"><br>
+  <button onclick="guardarUsuario()">Continuar</button>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <h3 id="usuario"></h3>
+
+  <button onclick="cambiarUsuario()">🔄 Cambiar estudiante</button>
+  <button onclick="finalizarRegistro()">✅ Finalizar registro</button>
+
+  <h2>📦 Equipo</h2>
+  <div id="reader-equipo"></div>
+  <p id="equipo"></p>
+
+  <h2>🎓 Curso</h2>
+  <div id="reader-curso"></div>
+  <p id="curso"></p>
+
+  <h3>📋 Historial</h3>
+  <div id="historial"></div>
+</div>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
